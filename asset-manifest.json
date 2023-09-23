@@ -1,0 +1,25 @@
+{
+  "files": {
+    "main.css": "/static/css/main.d0f42773.css",
+    "main.js": "/static/js/main.14d0f068.js",
+    "static/media/BackgroundFuture.png": "/static/media/BackgroundFuture.62ec6c50792f0549d7cb.png",
+    "static/media/backgroundAR.png": "/static/media/backgroundAR.1cd91c281142da9713e7.png",
+    "static/media/BackgroundFuture.webp": "/static/media/BackgroundFuture.c17fa132d5f4e9538e08.webp",
+    "static/media/Exo2-VariableFont_wght.ttf": "/static/media/Exo2-VariableFont_wght.718ec91358aa7ee8083b.ttf",
+    "static/media/LogoLazy.jpg": "/static/media/LogoLazy.b37d51e5c1189c7b29e6.jpg",
+    "static/media/earthorbiter.ttf": "/static/media/earthorbiter.ec02ef2a28a9e716c4a6.ttf",
+    "static/media/DescriptionLazy.jpg": "/static/media/DescriptionLazy.68743418b6448c4834c1.jpg",
+    "static/media/MoMoWorksLogo.png": "/static/media/MoMoWorksLogo.dac3d7a530ff10dd0a31.png",
+    "static/media/0xgpt_logoF.svg": "/static/media/0xgpt_logoF.2542c303b0c1cd9087165b112fee4719.svg",
+    "static/media/telegram.svg": "/static/media/telegram.19b67de9d60646c439ea23cd3c81f044.svg",
+    "static/media/twitter.svg": "/static/media/twitter.2ffcaf9ff1296e25a464ef9278971e2b.svg",
+    "index.html": "/index.html",
+    "static/media/medium.svg": "/static/media/medium.8a2e43618e9749bd34b11d28e31f4d9a.svg",
+    "main.d0f42773.css.map": "/static/css/main.d0f42773.css.map",
+    "main.14d0f068.js.map": "/static/js/main.14d0f068.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.d0f42773.css",
+    "static/js/main.14d0f068.js"
+  ]
+}
