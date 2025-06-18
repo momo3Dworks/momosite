@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { X as TwitterIcon, Menu as MenuIcon } from 'lucide-react';
 import { useGlitch } from 'react-powerglitch';
@@ -29,14 +29,12 @@ const PlaceholderLogo: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-// Options for the useGlitch hook
 const useGlitchOptions = {
   playMode: "hover" as const,
   hideOverflow: false,
   timing: {
     duration: 1150,
     iterations: 1,
-
   },
   glitchTimeSpan: {
     start: 0,
@@ -77,18 +75,59 @@ const GlitchedTwitterButton: React.FC = () => {
   );
 };
 
+const FPSCounter: React.FC = () => {
+  const [fps, setFps] = useState(0);
+  const frameCountRef = useRef(0);
+  const lastTimeRef = useRef(0);
+  const animationFrameIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    lastTimeRef.current = performance.now(); // Initialize lastTime
+    const calculateFps = (timestamp: number) => {
+      frameCountRef.current++;
+      const currentTime = timestamp;
+      const deltaTime = currentTime - lastTimeRef.current;
+
+      if (deltaTime >= 1000) { // Update FPS approx every second
+        setFps(Math.round(frameCountRef.current / (deltaTime / 1000)));
+        frameCountRef.current = 0;
+        lastTimeRef.current = currentTime;
+      }
+      animationFrameIdRef.current = requestAnimationFrame(calculateFps);
+    };
+
+    animationFrameIdRef.current = requestAnimationFrame(calculateFps);
+
+    return () => {
+      if (animationFrameIdRef.current) {
+        cancelAnimationFrame(animationFrameIdRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <div className="text-xs text-foreground/70 text-holographic tabular-nums">
+      {fps} FPS
+    </div>
+  );
+};
 
 const NavigationBar: React.FC = () => {
   const isMobile = useIsMobile();
 
   return (
     <nav className="NavBar fixed top-0 left-0 right-0 z-50 h-[52px] backdrop-blur-md shadow-lg">
-      <div className="container mx-auto flex h-full items-center justify-between"> {/* Removed px classes */}
+      <div className="container mx-auto flex h-full items-center justify-between relative"> {/* Added position: relative */}
         {!isMobile ? (
           <>
             <Link href="/" aria-label="Homepage">
               <GlitchedLogo />
             </Link>
+            
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+              <FPSCounter />
+            </div>
+
             <a
               href="https://x.com"
               target="_blank"
@@ -102,7 +141,7 @@ const NavigationBar: React.FC = () => {
           <>
             <Link href="/" aria-label="Homepage">
                <span className="inline-block relative top-[0.2rem]">
-                 <PlaceholderLogo className="h-7 w-7"/>
+                 <PlaceholderLogo className="h-7 w-7"/> {/* Consider a smaller logo for mobile if needed */}
                </span>
             </Link>
             <DropdownMenu>
@@ -130,6 +169,3 @@ const NavigationBar: React.FC = () => {
 };
 
 export default NavigationBar;
-    
-
-    

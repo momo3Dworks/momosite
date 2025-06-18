@@ -12,6 +12,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { BokehPass } from 'three/examples/jsm/postprocessing/BokehPass.js';
 import { AfterimagePass } from '@/lib/three/postprocessing/AfterimagePass.js';
 import { CopyShader } from '@/lib/three/shaders/CopyShader.js';
+import { WormholeVertexShader, WormholeFragmentShader } from '@/lib/three/shaders/WormholeShader.js';
 
 
 import { useToast } from "@/hooks/use-toast";
@@ -226,8 +227,8 @@ const ScrollSurferScene: React.FC = () => {
   const horizonParticleGeometryRef = useRef<THREE.SphereGeometry | null>(null);
   const horizonParticleMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
 
-  const wormholeMaterial1Ref = useRef<THREE.MeshStandardMaterial | null>(null);
-  const wormholeMaterial2Ref = useRef<THREE.MeshStandardMaterial | null>(null);
+  const wormholeShaderMaterial1Ref = useRef<THREE.ShaderMaterial | null>(null);
+  const wormholeShaderMaterial2Ref = useRef<THREE.ShaderMaterial | null>(null);
 
   const { toast } = useToast();
 
@@ -516,7 +517,7 @@ const ScrollSurferScene: React.FC = () => {
               if ((material as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
                 const standardMaterial = material as THREE.MeshStandardMaterial;
                 if (standardMaterial.emissiveMap) {
-                  standardMaterial.emissive = new THREE.Color(0xffffff); // Use white as base if emissiveMap exists
+                  standardMaterial.emissive = new THREE.Color(0xffffff); 
                 }
                 standardMaterial.emissiveIntensity = SPACESHIP_FIXED_EMISSIVE_INTENSITY;
                 standardMaterial.needsUpdate = true;
@@ -540,19 +541,50 @@ const ScrollSurferScene: React.FC = () => {
         wormhole.rotation.set(wormholeInitialRotX, wormholeInitialRotY, wormholeInitialRotZ);
         wormhole.scale.set(wormholeInitialScale, wormholeInitialScale, wormholeInitialScale);
         wormhole.visible = currentSceneKey === 'scene1' && transitionState !== 'fadingOutToScene2' && transitionState !== 'fadingInToScene2' && transitionState !== 'scene2Active';
+        
         wormhole.traverse((child) => {
           if (child instanceof THREE.Mesh && child.material) {
-            const material = child.material as THREE.MeshStandardMaterial;
-            if (material.name === "WORMHOLE 1") {
-              wormholeMaterial1Ref.current = material; material.emissiveIntensity = wormhole1EmissiveIntensity;
-              if (material.map) { material.map.wrapS = material.map.wrapT = THREE.RepeatWrapping; }
-              if (material.emissiveMap) { material.emissiveMap.wrapS = material.emissiveMap.wrapT = THREE.RepeatWrapping; }
-              if (material.normalMap) { material.normalMap.wrapS = material.normalMap.wrapT = THREE.RepeatWrapping; }
-            } else if (material.name === "WORMHOLE 2") {
-              wormholeMaterial2Ref.current = material; material.emissiveIntensity = wormhole2EmissiveIntensity;
-              if (material.map) { material.map.wrapS = material.map.wrapT = THREE.RepeatWrapping; }
-              if (material.emissiveMap) { material.emissiveMap.wrapS = material.emissiveMap.wrapT = THREE.RepeatWrapping; }
-              if (material.normalMap) { material.normalMap.wrapS = material.normalMap.wrapT = THREE.RepeatWrapping; }
+            const originalMaterial = child.material as THREE.MeshStandardMaterial;
+            let shaderMaterial: THREE.ShaderMaterial | null = null;
+            let offsetSpeedVec = new THREE.Vector2(0,0);
+            let emissiveIntensityVal = 1.0;
+
+            if (originalMaterial.name === "WORMHOLE 1") {
+              offsetSpeedVec = new THREE.Vector2(wormhole1OffsetXSpeed, wormhole1OffsetYSpeed);
+              emissiveIntensityVal = wormhole1EmissiveIntensity;
+            } else if (originalMaterial.name === "WORMHOLE 2") {
+              offsetSpeedVec = new THREE.Vector2(wormhole2OffsetXSpeed, wormhole2OffsetYSpeed);
+              emissiveIntensityVal = wormhole2EmissiveIntensity;
+            }
+
+            if (originalMaterial.map || originalMaterial.emissiveMap || originalMaterial.normalMap) {
+               if (originalMaterial.map) originalMaterial.map.wrapS = originalMaterial.map.wrapT = THREE.RepeatWrapping;
+               if (originalMaterial.emissiveMap) originalMaterial.emissiveMap.wrapS = originalMaterial.emissiveMap.wrapT = THREE.RepeatWrapping;
+               if (originalMaterial.normalMap) originalMaterial.normalMap.wrapS = originalMaterial.normalMap.wrapT = THREE.RepeatWrapping;
+
+              shaderMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                  uDiffuseMap: { value: originalMaterial.map || null }, // Ensure null if map doesn't exist
+                  uEmissiveMap: { value: originalMaterial.emissiveMap || null },
+                  uNormalMap: { value: originalMaterial.normalMap || null },
+                  uTime: { value: 0.0 },
+                  uOffsetSpeed: { value: offsetSpeedVec },
+                  uEmissiveIntensity: { value: emissiveIntensityVal },
+                  uOpacity: { value: originalMaterial.opacity !== undefined ? originalMaterial.opacity : 1.0 },
+                },
+                vertexShader: WormholeVertexShader,
+                fragmentShader: WormholeFragmentShader,
+                transparent: true, 
+                depthWrite: originalMaterial.depthWrite !== undefined ? originalMaterial.depthWrite : true,
+                blending: originalMaterial.blending || THREE.NormalBlending,
+              });
+              child.material = shaderMaterial;
+
+              if (originalMaterial.name === "WORMHOLE 1") {
+                wormholeShaderMaterial1Ref.current = shaderMaterial;
+              } else if (originalMaterial.name === "WORMHOLE 2") {
+                wormholeShaderMaterial2Ref.current = shaderMaterial;
+              }
             }
           }
         });
@@ -887,12 +919,14 @@ const ScrollSurferScene: React.FC = () => {
     if (currentSceneKey === 'scene1' && (transitionState === 'idle' || transitionState === 'fadingInToScene1')) {
         if (planet1MixerRef.current) planet1MixerRef.current.update(deltaTime);
         if (spaceStation1MixerRef.current) spaceStation1MixerRef.current.update(deltaTime);
-        if (wormholeMaterial1Ref.current && wormholeMaterial1Ref.current.map) { wormholeMaterial1Ref.current.map.offset.x += wormhole1OffsetXSpeed * deltaTime; wormholeMaterial1Ref.current.map.offset.y += wormhole1OffsetYSpeed * deltaTime; }
-        if (wormholeMaterial1Ref.current && wormholeMaterial1Ref.current.emissiveMap) { wormholeMaterial1Ref.current.emissiveMap.offset.x += wormhole1OffsetXSpeed * deltaTime; wormholeMaterial1Ref.current.emissiveMap.offset.y += wormhole1OffsetYSpeed * deltaTime; }
-        if (wormholeMaterial1Ref.current && wormholeMaterial1Ref.current.normalMap) { wormholeMaterial1Ref.current.normalMap.offset.x += wormhole1OffsetXSpeed * deltaTime; wormholeMaterial1Ref.current.normalMap.offset.y += wormhole1OffsetYSpeed * deltaTime; }
-        if (wormholeMaterial2Ref.current && wormholeMaterial2Ref.current.map) { wormholeMaterial2Ref.current.map.offset.x += wormhole2OffsetXSpeed * deltaTime; wormholeMaterial2Ref.current.map.offset.y += wormhole2OffsetYSpeed * deltaTime; }
-        if (wormholeMaterial2Ref.current && wormholeMaterial2Ref.current.emissiveMap) { wormholeMaterial2Ref.current.emissiveMap.offset.x += wormhole2OffsetXSpeed * deltaTime; wormholeMaterial2Ref.current.emissiveMap.offset.y += wormhole2OffsetYSpeed * deltaTime; }
-        if (wormholeMaterial2Ref.current && wormholeMaterial2Ref.current.normalMap) { wormholeMaterial2Ref.current.normalMap.offset.x += wormhole2OffsetXSpeed * deltaTime; wormholeMaterial2Ref.current.normalMap.offset.y += wormhole2OffsetYSpeed * deltaTime; }
+        
+        if (wormholeShaderMaterial1Ref.current) {
+          wormholeShaderMaterial1Ref.current.uniforms.uTime.value = elapsedTime;
+        }
+        if (wormholeShaderMaterial2Ref.current) {
+          wormholeShaderMaterial2Ref.current.uniforms.uTime.value = elapsedTime;
+        }
+
     } else if (currentSceneKey === 'scene2' && oceanModelRef.current && oceanModelRef.current.visible && oceanModelTextureMaterialsRef.current.length > 0) {
         oceanModelTextureMaterialsRef.current.forEach(material => {
             if (material.map) {
@@ -1306,8 +1340,10 @@ const ScrollSurferScene: React.FC = () => {
       
       horizonParticleContainerRef.current = null;
       
-      wormholeMaterial1Ref.current = null;
-      wormholeMaterial2Ref.current = null;
+      if (wormholeShaderMaterial1Ref.current) wormholeShaderMaterial1Ref.current.dispose();
+      if (wormholeShaderMaterial2Ref.current) wormholeShaderMaterial2Ref.current.dispose();
+      wormholeShaderMaterial1Ref.current = null;
+      wormholeShaderMaterial2Ref.current = null;
       
       oceanModelTextureMaterialsRef.current = [];
     };
@@ -1445,3 +1481,4 @@ export default ScrollSurferScene;
 
 
     
+
